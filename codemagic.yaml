@@ -1,0 +1,32 @@
+workflows:
+  build-sensiaura-keys:
+    name: Build SensiAuraKeys
+    max_build_duration: 30
+    environment:
+      xcode: latest
+    scripts:
+      - name: Resolve Swift package
+        script: swift package resolve
+      - name: Build iOS dynamic library
+        script: |
+          set -e
+          rm -rf build artifacts
+          mkdir -p artifacts
+          xcodebuild \
+            -scheme SensiAuraKeys \
+            -destination 'generic/platform=iOS' \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+          PRODUCT_DIR="build/Build/Products/Release-iphoneos"
+          find "$PRODUCT_DIR" -maxdepth 2 \( -name '*.framework' -o -name '*.dylib' \) -exec cp -R {} artifacts/ \;
+          if [ -z "$(find artifacts -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+            echo 'No se encontró ningún framework o dylib compilado.'
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent artifacts SensiAuraKeys-iOS.zip
+    artifacts:
+      - SensiAuraKeys-iOS.zip
+      - artifacts/**/*
